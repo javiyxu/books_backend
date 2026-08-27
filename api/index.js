@@ -28,6 +28,11 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 10000
 });
 
+// Root welcome message path to prevent base URL 404 pages
+app.get("/", (req, res) => {
+  res.status(200).send("🚀 Books database backend API is running smoothly!");
+});
+
 // Test database connection gracefully without breaking the initialization loop
 pool.getConnection((err, conn) => {
   if (err) {
@@ -40,7 +45,6 @@ pool.getConnection((err, conn) => {
 
 // ---- READ: Get all books ----
 app.get("/api/books", (req, res) => {
-  // Explicitly guarantee CORS responses are appended during read state
   res.setHeader("Access-Control-Allow-Origin", "*");
   
   pool.query("SELECT * FROM books ORDER BY id DESC", (err, rows) => {
@@ -55,15 +59,17 @@ app.get("/api/books", (req, res) => {
 // ---- CREATE: Insert a new book ----
 app.post("/api/books", (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  const { title, author, year_published } = req.body;
+  
+  // Accept yearPub to perfectly align with Flutter's payload parameter mapping
+  const { title, author, yearPub } = req.body;
 
-  if (!title || !author || !year_published) {
-    return res.status(400).json({ error: "title, author, and year_published are all required." });
+  if (!title || !author || !yearPub) {
+    return res.status(400).json({ error: "title, author, and yearPub are all required." });
   }
 
   pool.query(
     "INSERT INTO books (title, author, year_published) VALUES (?, ?, ?)",
-    [title, author, parseInt(year_published, 10)],
+    [title, author, parseInt(yearPub, 10)],
     (err, result) => {
       if (err) {
         console.error("Write Error:", err.message);
@@ -77,8 +83,7 @@ app.post("/api/books", (req, res) => {
   );
 });
 
-// 🟢 FIX: Only invoke direct port listener if running in a non-production (local) environment. 
-// This keeps your local terminal active while allowing Vercel serverless triggers to work without conflicts.
+// Only invoke direct port listener if running in a non-production (local) environment. 
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server is running and listening locally on port ${PORT}`);
